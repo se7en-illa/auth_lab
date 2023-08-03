@@ -1,5 +1,6 @@
 <html>
   <head>
+    <title>Auth Lab</title>
     <script
       src="https://unpkg.com/react@17/umd/react.development.js"
       crossorigin
@@ -18,54 +19,38 @@
   <body>
     <div id="root"></div>
     <script type="text/babel">
-      class SignIn extends React.Component {
-        constructor() {
-          super();
-          this.state = {
-            username: "",
-            password: "",
-          };
-          this.onChange = this.onChange.bind(this);
-          this.onSubmit = this.onSubmit.bind(this);
-        }
-        onChange(ev) {
-          this.setState({ [ev.target.name]: ev.target.value });
-        }
-        onSubmit(ev) {
-          ev.preventDefault();
-          const { username, password } = this.state;
-          this.props.signIn({
-            username,
-            password,
-          });
-        }
-        render() {
-          const { onChange, onSubmit } = this;
-          const { username, password } = this.state;
-          return (
-            <form onSubmit={onSubmit}>
-              <input value={username} onChange={onChange} name="username" />
-              <input value={password} onChange={onChange} name="password" />
-              <button>Sign In</button>
-            </form>
-          );
-        }
-      }
+      const SignIn = ({ signIn }) => {
+        const [username, setUsername] = React.useState("");
+        const [password, setPassword] = React.useState("");
 
-      class App extends React.Component {
-        constructor() {
-          super();
-          this.state = {
-            auth: {},
-          };
-          this.signIn = this.signIn.bind(this);
-          this.logout = this.logout.bind(this);
-        }
-        logout() {
+        const onChange = (ev) => {
+          if (ev.target.name === "username") setUsername(ev.target.value);
+          else if (ev.target.name === "password") setPassword(ev.target.value);
+        };
+
+        const onSubmit = (ev) => {
+          ev.preventDefault();
+          signIn({ username, password });
+        };
+
+        return (
+          <form onSubmit={onSubmit}>
+            <input value={username} onChange={onChange} name="username" />
+            <input value={password} onChange={onChange} name="password" />
+            <button>Sign In</button>
+          </form>
+        );
+      };
+
+      const App = () => {
+        const [auth, setAuth] = React.useState({});
+
+        const logout = () => {
           window.localStorage.removeItem("token");
-          this.setState({ auth: {} });
-        }
-        async attemptTokenLogin() {
+          setAuth({});
+        };
+
+        const attemptTokenLogin = async () => {
           const token = window.localStorage.getItem("token");
           if (token) {
             const response = await axios.get("/api/auth", {
@@ -73,33 +58,32 @@
                 authorization: token,
               },
             });
-            this.setState({ auth: response.data });
+            setAuth(response.data);
           }
-        }
-        componentDidMount() {
-          this.attemptTokenLogin();
-        }
-        async signIn(credentials) {
+        };
+
+        React.useEffect(() => {
+          attemptTokenLogin();
+        }, []);
+
+        const signIn = async (credentials) => {
           let response = await axios.post("/api/auth", credentials);
           const { token } = response.data;
           window.localStorage.setItem("token", token);
-          this.attemptTokenLogin();
+          attemptTokenLogin();
+        };
+
+        if (!auth.id) {
+          return <SignIn signIn={signIn} />;
+        } else {
+          return (
+            <div>
+              Welcome {auth.username}
+              <button onClick={logout}>Logout</button>
+            </div>
+          );
         }
-        render() {
-          const { auth } = this.state;
-          const { signIn, logout } = this;
-          if (!auth.id) {
-            return <SignIn signIn={signIn} />;
-          } else {
-            return (
-              <div>
-                Welcome {auth.username}
-                <button onClick={logout}>Logout</button>
-              </div>
-            );
-          }
-        }
-      }
+      };
       ReactDOM.render(<App />, document.querySelector("#root"));
     </script>
   </body>
